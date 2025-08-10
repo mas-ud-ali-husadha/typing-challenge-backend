@@ -15,20 +15,46 @@ class TextService {
       ];
 
       for (let i = 0; i < typingTexts.length; i++) {
-        await this.redis.hset('typing:texts', i, typingTexts[i]);
+        await this.redis.hset('typing:texts', i.toString(), typingTexts[i]);
       }
+
+      console.log('[TextService] Initialized default typing texts.');
     }
   }
 
   async getRandomText() {
-    const texts = await this.redis.hgetall('typing:texts');
-    const textKeys = Object.keys(texts);
-    const randomKey = textKeys[Math.floor(Math.random() * textKeys.length)];
+    // 1. Get all texts
+    let texts = await this.redis.hgetall('typing:texts');
 
+    // 2. If empty, auto-initialize and fetch again
+    if (Object.keys(texts).length === 0) {
+      console.warn('[TextService] No texts found in Redis. Initializing...');
+      await this.initializeTexts();
+      texts = await this.redis.hgetall('typing:texts');
+    }
+
+    // 3. Still empty? Throw clear error
+    const textKeys = Object.keys(texts);
+    if (textKeys.length === 0) {
+      throw new Error(
+        'No typing texts available in Redis after initialization.'
+      );
+    }
+
+    // 4. Pick random key safely
+    const randomKey = textKeys[Math.floor(Math.random() * textKeys.length)];
+    const chosenText = texts[randomKey];
+
+    // 5. Safety check in case value is missing
+    if (!chosenText) {
+      throw new Error(`No value found for key ${randomKey} in Redis hash.`);
+    }
+
+    // 6. Return the result
     return {
       id: randomKey,
-      text: texts[randomKey],
-      length: texts[randomKey].length,
+      text: chosenText,
+      length: chosenText.length,
     };
   }
 }
