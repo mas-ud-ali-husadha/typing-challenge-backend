@@ -6,7 +6,7 @@ class PubSubService {
   }
 
   setup() {
-    // Subscribe to typing updates
+    // Subscribe to the main updates channel
     this.redisPubSub.subscribe('typing:updates', (err, count) => {
       if (err) {
         console.error('Redis subscription error:', err);
@@ -15,6 +15,7 @@ class PubSubService {
       }
     });
 
+    // Listen for messages on the subscribed channels
     this.redisPubSub.on('message', (channel, message) => {
       try {
         const data = JSON.parse(message);
@@ -26,6 +27,14 @@ class PubSubService {
               result: data.result,
             });
             this.socketService.broadcastLeaderboard();
+            break;
+
+          case 'stats_update':
+            this.io.emit('user_stats_updated', {
+              username: data.username,
+              stats: data.stats,
+            });
+            this.io.emit('stats_update', data.payload);
             break;
 
           case 'user_online':

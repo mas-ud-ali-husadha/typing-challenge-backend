@@ -46,6 +46,19 @@ class UserService {
     pipeline.zadd('leaderboard:consistency', newAvgConsistency, username);
 
     await pipeline.exec();
+
+    const freshStats = {
+      totalTests: newTotalTests,
+      avg_wpm: newAvgWpm,
+      avg_accuracy: newAvgAccuracy,
+      avg_consistency: newAvgConsistency,
+      best_wpm: newBestWpm,
+    };
+    
+    await this.redis.publish(
+      'typing:updates',
+      JSON.stringify({ type: 'stats_update', username, stats: freshStats })
+    );
   }
 
   async getUserProfile(username) {
